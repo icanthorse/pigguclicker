@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Emoji Pig Clicker</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka+One&family=Roboto&display=swap" rel="stylesheet">
+
+    <style>
+        :root {
+            --primary-bg: #fdf2f8; /* Light pink */
+            --secondary-bg: #fff;
+            --text-color: #333;
+            --accent-color: #ec4899; /* Hot pink */
+            --disabled-color: #9ca3af;
+            --border-color: #f3f4f6;
+            --shadow-color: rgba(0, 0, 0, 0.05);
+        }
+
+        body {
+            font-family: 'Roboto', sans-serif;
+            background-color: var(--primary-bg);
+            color: var(--text-color);
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            overflow: hidden; /* Prevents scrollbars from flying emojis */
+        }
+
+        h1, h2 {
+            font-family: 'Fredoka One', cursive;
+            color: var(--accent-color);
+        }
+
+        #game-container {
+            display: flex;
+            flex-wrap: wrap; /* Allow wrapping on smaller screens */
+            gap: 2rem;
+            width: 95%;
+            max-width: 1000px;
+            background: var(--secondary-bg);
+            padding: 2rem;
+            border-radius: 20px;
+            box-shadow: 0 10px 25px var(--shadow-color);
+        }
+        
+        #left-column, #right-column {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            min-width: 300px; /* Prevent columns from getting too narrow */
+        }
+
+        #counters { text-align: center; }
+        #counters h1 { font-size: 2.5rem; margin: 0; }
+        #counters p { margin: 0.25rem 0; font-size: 1.1rem; color: #6b7280; }
+
+        #pig-area {
+            position: relative;
+            flex-grow: 1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        #pig-emoji {
+            font-size: 12rem;
+            cursor: pointer;
+            user-select: none;
+            transition: transform 0.1s ease;
+        }
+        #pig-emoji:hover { transform: scale(1.05); }
+        #pig-emoji.clicked { transform: scale(0.9); }
+
+        #store-container {
+            overflow-y: auto;
+            max-height: 60vh;
+            padding-right: 10px;
+        }
+
+        .store-item {
+            display: flex;
+            align-items: center;
+            padding: 1rem;
+            margin-bottom: 0.5rem;
+            background-color: var(--primary-bg);
+            border-radius: 10px;
+            border: 2px solid var(--border-color);
+        }
+        .store-item .emoji { font-size: 2.5rem; margin-right: 1rem; }
+        .store-item .info { flex-grow: 1; }
+        .store-item .info h3 { margin: 0; font-size: 1.2rem; }
+        .store-item .info p { margin: 0; color: #6b7280; }
+        .store-item .buy-button {
+            font-family: 'Fredoka One', cursive;
+            padding: 0.5rem 1rem;
+            font-size: 1rem;
+            cursor: pointer;
+            border: none;
+            border-radius: 8px;
+            background-color: var(--accent-color);
+            color: white;
+            transition: background-color 0.2s;
+        }
+        .store-item .buy-button:hover { background-color: #d94686; }
+        .store-item .buy-button.disabled {
+            background-color: var(--disabled-color);
+            cursor: not-allowed;
+            pointer-events: none;
+        }
+
+        .floating-emoji {
+            position: absolute;
+            font-size: 2rem;
+            user-select: none;
+            pointer-events: none;
+            animation: float-up 1.5s ease-out forwards;
+        }
+        @keyframes float-up {
+            0% { opacity: 1; transform: translateY(0); }
+            100% { opacity: 0; transform: translateY(-100px); }
+        }
+
+        .golden-pig {
+            position: fixed;
+            font-size: 4rem;
+            color: gold;
+            text-shadow: 0 0 10px yellow;
+            cursor: pointer;
+            z-index: 1000;
+            animation: fly-across 10s linear;
+        }
+        @keyframes fly-across {
+            from { left: -10%; }
+            to { left: 110%; }
+        }
+
+        #prestige-button {
+            font-family: 'Fredoka One', cursive;
+            margin-top: 1rem;
+            padding: 1rem;
+            font-size: 1.2rem;
+            border: none;
+            border-radius: 10px;
+            color: white;
+            background: linear-gradient(45deg, #f9a8d4, #f472b6);
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        #prestige-button:hover { transform: scale(1.05); }
+
+        .hidden { display: none; }
+        
+        #version-display {
+            position: absolute;
+            bottom: 5px;
+            right: 10px;
+            font-size: 0.8rem;
+            color: var(--disabled-color);
+        }
+    </style>
+</head>
+<body>
+
+    <div id="game-container">
+        <!-- Left Column: The Pig and Counters -->
+        <div id="left-column">
+            <div id="counters">
+                <h1 id="oink-counter">0 🐽</h1>
+                <p id="ops-counter">per second: 0</p>
+                <p id="prestige-info">0 🏆 (+0% bonus)</p>
+            </div>
+            <div id="pig-area">
+                <div id="pig-emoji">🐖</div>
+                <!-- Floating emojis will be added here by JS -->
+            </div>
+             <button id="prestige-button" class="hidden">Prestige for 0 🏆</button>
+        </div>
+
+        <!-- Right Column: The Store -->
+        <div id="right-column">
+            <h2>The Sty Store</h2>
+            <div id="store-container">
+                <!-- Upgrades will be dynamically generated here by JS -->
+            </div>
+        </div>
+    </div>
+    
+    <div id="version-display"></div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+
+            // --- DOM ELEMENT REFERENCES ---
+            const pigEmoji = document.getElementById('pig-emoji');
+            const oinkCounter = document.getElementById('oink-counter');
+            const opsCounter = document.getElementById('ops-counter');
+            const prestigeInfo = document.getElementById('prestige-info');
+            const storeContainer = document.getElementById('store-container');
+            const prestigeButton = document.getElementById('prestige-button');
+            const versionDisplay = document.getElementById('version-display');
+
+            // --- GAME STATE ---
+            let gameState = {
+                version: "1.1",
+                oinks: 0,
+                oinksPerClick: 1,
+                totalOinksEarned: 0,
+                goldenTrophies: 0
+            };
+
+            // --- GAME DATA ---
+            const buildings = [
+                { id: 0, name: 'Piglet Pen', emoji: '🐷', baseCost: 15, ops: 1, owned: 0 },
+                { id: 1, name: 'Mud Puddle', emoji: '🟫', baseCost: 100, ops: 8, owned: 0 },
+                { id: 2, name: 'Truffle Farm', emoji: '🍄', baseCost: 1100, ops: 50, owned: 0 },
+                { id: 3, name: 'Oink Factory', emoji: '🏭', baseCost: 12000, ops: 250, owned: 0 },
+                { id: 4, name: 'Bacon Bank', emoji: '🏦', baseCost: 130000, ops: 1400, owned: 0 },
+                { id: 5, name: 'Swine Sorcerer', emoji: '🧙‍♂️', baseCost: 2000000, ops: 7800, owned: 0 },
+                { id: 6, name: 'Pig Planet', emoji: '🪐', baseCost: 33000000, ops: 44000, owned: 0 }
+            ];
+            
+            const PRESTIGE_THRESHOLD = 1e12; // 1 Trillion
+
+            // --- CORE FUNCTIONS ---
+
+            const formatNumber = (num) => {
+                if (num < 1000) return num.toFixed(0);
+                const suffixes = ['', 'K', 'M', 'B', 'T', 'Qa', 'Qi'];
+                const i = Math.floor(Math.log10(num) / 3);
+                const value = (num / Math.pow(1000, i)).toFixed(2);
+                return `${value} ${suffixes[i]}`;
+            };
+            
+            const calculateOPS = () => buildings.reduce((total, b) => total + (b.ops * b.owned), 0);
+            const getPrestigeBonus = () => 1 + (gameState.goldenTrophies * 0.02);
+
+            const updateCounters = () => {
+                const prestigeBonus = getPrestigeBonus();
+                const oinksPerSecond = calculateOPS() * prestigeBonus;
+                oinkCounter.innerHTML = `${formatNumber(gameState.oinks)} 🐽`;
+                opsCounter.textContent = `per second: ${formatNumber(oinksPerSecond)}`;
+                prestigeInfo.textContent = `${gameState.goldenTrophies} 🏆 (+${(prestigeBonus * 100 - 100).toFixed(0)}% bonus)`;
+                versionDisplay.textContent = `v${gameState.version}`;
+            };
+            
+            const createFloatingEmoji = () => {
+                const emoji = document.createElement('div');
+                emoji.classList.add('floating-emoji');
+                emoji.innerHTML = `+${formatNumber(gameState.oinksPerClick * getPrestigeBonus())} 🐽`;
+                emoji.style.left = `${Math.random() * 20 + 40}%`;
+                pigEmoji.parentElement.appendChild(emoji);
+                setTimeout(() => emoji.remove(), 1500);
+            };
+
+            const renderStore = () => {
+                storeContainer.innerHTML = '';
+                buildings.forEach(b => {
+                    const currentCost = b.baseCost * Math.pow(1.15, b.owned);
+                    const canAfford = gameState.oinks >= currentCost;
+                    const itemDiv = document.createElement('div');
+                    itemDiv.className = 'store-item';
+                    itemDiv.innerHTML = `
+                        <div class="emoji">${b.emoji}</div>
+                        <div class="info">
+                            <h3>${b.name}</h3>
+                            <p>+${formatNumber(b.ops)} OPS | Owned: ${b.owned}</p>
+                        </div>
+                        <button class="buy-button ${canAfford ? '' : 'disabled'}" data-id="${b.id}">
+                            ${formatNumber(currentCost)} 🐽
+                        </button>
+                    `;
+                    storeContainer.appendChild(itemDiv);
+                });
+            };
+            
+            const checkPrestige = () => {
+                if (gameState.totalOinksEarned >= PRESTIGE_THRESHOLD) {
+                    const trophiesToGain = Math.floor(Math.pow(gameState.totalOinksEarned / PRESTIGE_THRESHOLD, 0.5));
+                    prestigeButton.innerHTML = `Prestige for ${trophiesToGain} 🏆`;
+                    prestigeButton.classList.remove('hidden');
+                }
+            };
+
+            // --- EVENT HANDLERS ---
+            
+            pigEmoji.addEventListener('click', () => {
+                const oinksGained = gameState.oinksPerClick * getPrestigeBonus();
+                gameState.oinks += oinksGained;
+                gameState.totalOinksEarned += oinksGained;
+                pigEmoji.classList.add('clicked');
+                setTimeout(() => pigEmoji.classList.remove('clicked'), 100);
+                createFloatingEmoji();
+                updateCounters();
+            });
+
+            storeContainer.addEventListener('click', (e) => {
+                if (e.target.classList.contains('buy-button')) {
+                    const buildingId = parseInt(e.target.dataset.id);
+                    const building = buildings.find(b => b.id === buildingId);
+                    const currentCost = building.baseCost * Math.pow(1.15, building.owned);
+                    if (gameState.oinks >= currentCost) {
+                        gameState.oinks -= currentCost;
+                        building.owned++;
+                        updateCounters();
+                        renderStore();
+                    }
+                }
+            });
+            
+            prestigeButton.addEventListener('click', () => {
+                const trophiesToGain = Math.floor(Math.pow(gameState.totalOinksEarned / PRESTIGE_THRESHOLD, 0.5));
+                if (trophiesToGain > 0 && confirm(`Are you sure you want to prestige for ${trophiesToGain} 🏆? This will reset your Oinks and buildings, but you will gain a permanent bonus.`)) {
+                    gameState.goldenTrophies += trophiesToGain;
+                    gameState.oinks = 0;
+                    gameState.oinksPerClick = 1;
+                    gameState.totalOinksEarned = 0;
+                    buildings.forEach(b => b.owned = 0);
+                    saveGame();
+                    location.reload();
+                }
+            });
+            
+            const spawnGoldenPig = () => {
+                const goldenPig = document.createElement('div');
+                goldenPig.className = 'golden-pig';
+                goldenPig.textContent = '💰';
+                goldenPig.style.top = `${Math.random() * 80 + 10}%`;
+                document.body.appendChild(goldenPig);
+                goldenPig.addEventListener('click', () => {
+                    const bonus = (calculateOPS() * getPrestigeBonus() * 300) + (gameState.oinks * 0.1);
+                    if(bonus > 0) gameState.oinks += bonus;
+                    updateCounters();
+                    goldenPig.remove();
+                }, { once: true });
+                setTimeout(() => goldenPig.remove(), 10000);
+            };
+
+            // --- SAVING & LOADING ---
+            const saveGame = () => {
+                const saveState = { ...gameState, buildingsOwned: buildings.map(b => b.owned) };
+                localStorage.setItem('emojiPigClickerSave', JSON.stringify(saveState));
+            };
+
+            const loadGame = () => {
+                const savedGame = localStorage.getItem('emojiPigClickerSave');
+                if (savedGame) {
+                    const loadedState = JSON.parse(savedGame);
+                    if (loadedState.version === gameState.version) {
+                        gameState = { ...gameState, ...loadedState };
+                        if (loadedState.buildingsOwned) {
+                            buildings.forEach((b, i) => b.owned = loadedState.buildingsOwned[i] || 0);
+                        }
+                    } else {
+                        // Handle version mismatch if necessary (e.g., clear save)
+                        console.log("Save file from a different version detected. Starting fresh.");
+                    }
+                }
+            };
+            
+            // --- GAME LOOPS & INITIALIZATION ---
+            loadGame();
+            
+            setInterval(() => { // Main game tick
+                const prestigeBonus = getPrestigeBonus();
+                const oinksThisTick = calculateOPS() * prestigeBonus;
+                gameState.oinks += oinksThisTick;
+                gameState.totalOinksEarned += oinksThisTick;
+                updateCounters();
+                checkPrestige();
+            }, 1000);
+            
+            setInterval(renderStore, 2000); // UI update tick
+            setInterval(spawnGoldenPig, 45000);
+            setInterval(saveGame, 15000); // Auto-save every 15 seconds
+            
+            // Initial render
+            renderStore();
+            updateCounters();
+        });
+    </script>
+</body>
+</html>
